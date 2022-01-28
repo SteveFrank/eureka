@@ -285,6 +285,7 @@ public class DiscoveryClient implements EurekaClient {
 
             @Override
             public synchronized BackupRegistry get() {
+                // 尝试从备份注册表中获取
                 if (backupRegistryInstance == null) {
                     String backupRegistryClassName = config.getBackupRegistryImpl();
                     if (null != backupRegistryClassName) {
@@ -438,15 +439,18 @@ public class DiscoveryClient implements EurekaClient {
 
         if (clientConfig.shouldFetchRegistry()) {
             try {
+                // 从远端获取注册表信息
                 boolean primaryFetchRegistryResult = fetchRegistry(false);
                 if (!primaryFetchRegistryResult) {
                     logger.info("Initial registry fetch from primary servers failed");
                 }
                 boolean backupFetchRegistryResult = true;
                 if (!primaryFetchRegistryResult && !fetchRegistryFromBackup()) {
+                    // 本地获取失败
                     backupFetchRegistryResult = false;
                     logger.info("Initial registry fetch from backup servers failed");
                 }
+                // 如果远程和本地获取都失败了，就抛出异常
                 if (!primaryFetchRegistryResult && !backupFetchRegistryResult && clientConfig.shouldEnforceFetchRegistryAtInit()) {
                     throw new IllegalStateException("Fetch registry error at startup. Initial fetch failed.");
                 }
@@ -995,8 +999,12 @@ public class DiscoveryClient implements EurekaClient {
         try {
             // If the delta is disabled or if it is the first time, get all
             // applications
+            // 获取本地Region Apps
             Applications applications = getApplications();
 
+            // forceFullRegistryFetch 是否强制全量获取
+            // 指定要连接哪一个 getRegistryRefreshSingleVipAddress
+            // VIP => 代表了虚拟IP
             if (clientConfig.shouldDisableDelta()
                     || (!Strings.isNullOrEmpty(clientConfig.getRegistryRefreshSingleVipAddress()))
                     || forceFullRegistryFetch
@@ -1011,6 +1019,7 @@ public class DiscoveryClient implements EurekaClient {
                 logger.info("Registered Applications size is zero : {}",
                         (applications.getRegisteredApplications().size() == 0));
                 logger.info("Application version is -1: {}", (applications.getVersion() == -1));
+                // 获取和保存所有的注册表信息
                 getAndStoreFullRegistry();
             } else {
                 getAndUpdateDelta(applications);
@@ -1495,6 +1504,7 @@ public class DiscoveryClient implements EurekaClient {
      */
     class CacheRefreshThread implements Runnable {
         public void run() {
+            // 更新注册表
             refreshRegistry();
         }
     }
@@ -1509,6 +1519,7 @@ public class DiscoveryClient implements EurekaClient {
             String latestRemoteRegions = clientConfig.fetchRegistryForRemoteRegions();
             if (null != latestRemoteRegions) {
                 String currentRemoteRegions = remoteRegionsToFetch.get();
+                // 迭代稳定性
                 if (!latestRemoteRegions.equals(currentRemoteRegions)) {
                     // Both remoteRegionsToFetch and AzToRegionMapper.regionsToFetch need to be in sync
                     synchronized (instanceRegionChecker.getAzToRegionMapper()) {

@@ -21,6 +21,9 @@ import org.slf4j.LoggerFactory;
  * Wrapped subtasks must be thread safe.
  *
  * @author David Qiang Liu
+ *
+ * 时间管理器任务
+ *
  */
 public class TimedSupervisorTask extends TimerTask {
     private static final Logger logger = LoggerFactory.getLogger(TimedSupervisorTask.class);
@@ -65,6 +68,7 @@ public class TimedSupervisorTask extends TimerTask {
         try {
             future = executor.submit(task);
             threadPoolLevelGauge.set((long) executor.getActiveCount());
+            // 用于阻塞当前线程的执行，从而等待上面的异步线程执行
             future.get(timeoutMillis, TimeUnit.MILLISECONDS);  // block until done or timeout
             delay.set(timeoutMillis);
             threadPoolLevelGauge.set((long) executor.getActiveCount());
@@ -94,6 +98,7 @@ public class TimedSupervisorTask extends TimerTask {
 
             throwableCounter.increment();
         } finally {
+            // future 正常执行完毕会为null，不为null说明没有正常操作
             if (future != null) {
                 future.cancel(true);
             }

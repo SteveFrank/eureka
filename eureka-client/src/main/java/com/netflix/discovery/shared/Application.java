@@ -69,11 +69,17 @@ public class Application {
     @XStreamOmitField
     private volatile boolean isDirty = false;
 
+    /**
+     * 保存着当前name锁指定的微服务名称下的所有InstanceInfo
+     */
     @XStreamImplicit
     private final Set<InstanceInfo> instances;
 
     private final AtomicReference<List<InstanceInfo>> shuffledInstances;
 
+    /**
+     * key为 instanceId，value为InstanceInfo
+     */
     private final Map<String, InstanceInfo> instancesMap;
 
     public Application() {

@@ -136,7 +136,10 @@ public class InstanceInfo {
     private volatile boolean isUnsecurePortEnabled = true;
     private volatile DataCenterInfo dataCenterInfo;
     private volatile String hostName;
+    // 记录当前Client在Server端的状态
     private volatile InstanceStatus status = InstanceStatus.UP;
+    // 该状态用于计算 Client 在Server端的状态 status (在Client提交注册请求与Renew续约请求的时候)
+    // 注册和续约的时候，进行重新计算的时候会使用到
     private volatile InstanceStatus overriddenStatus = InstanceStatus.UNKNOWN;
     @XStreamOmitField
     private volatile boolean isInstanceInfoDirty = false;
@@ -145,8 +148,10 @@ public class InstanceInfo {
     private volatile Boolean isCoordinatingDiscoveryServer = Boolean.FALSE;
     @XStreamAlias("metadata")
     private volatile Map<String, String> metadata;
+    // 记录当前 InstanceInfo在Server端 被修改的时间戳
     @Auto
     private volatile Long lastUpdatedTimestamp;
+    // 记录当前 InstanceInfo在Client端 被修改的时间戳
     @Auto
     private volatile Long lastDirtyTimestamp;
     @Auto
@@ -313,7 +318,9 @@ public class InstanceInfo {
         this.version = ii.version;
     }
 
-
+    /**
+     * UP <-> OUT_OF_SERVICE 之间进行切换
+     */
     public enum InstanceStatus {
         UP, // Ready to receive traffic
         DOWN, // Do not send traffic- healthcheck callback failed
@@ -341,6 +348,13 @@ public class InstanceInfo {
         return (id == null) ? 31 : (id.hashCode() + 31);
     }
 
+    /**
+     * 重写了equals方法，只要两个InstanceInfo 的 instanceId相同，
+     * 那么这两个InstanceInfo就是相同的
+     *
+     * @param obj
+     * @return
+     */
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {

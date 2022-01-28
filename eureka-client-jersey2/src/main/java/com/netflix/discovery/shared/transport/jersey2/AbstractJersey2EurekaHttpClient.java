@@ -252,8 +252,10 @@ public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClien
     private EurekaHttpResponse<Applications> getApplicationsInternal(String urlPath, String[] regions) {
         Response response = null;
         try {
+            // 通过 Jersey 框架调用
             WebTarget webTarget = jerseyClient.target(serviceUrl).path(urlPath);
             if (regions != null && regions.length > 0) {
+                // 获取远程 region 列表
                 webTarget = webTarget.queryParam("regions", StringUtil.join(regions));
             }
             Builder requestBuilder = webTarget.request();
