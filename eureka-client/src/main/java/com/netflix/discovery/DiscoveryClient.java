@@ -1133,29 +1133,39 @@ public class DiscoveryClient implements EurekaClient {
      *   abort entire processing otherwise
      *   do reconciliation if reconcileHashCode clash
      * fi
-     *
+     * DiscoveryClient
      * @return the client response
      * @throws Throwable on error
      */
     private void getAndUpdateDelta(Applications applications) throws Throwable {
         long currentUpdateGeneration = fetchRegistryGeneration.get();
-
+        // 存储发生变更的数据信息
         Applications delta = null;
         EurekaHttpResponse<Applications> httpResponse = eurekaTransport.queryClient.getDelta(remoteRegionsRef.get());
         if (httpResponse.getStatusCode() == Status.OK.getStatusCode()) {
             delta = httpResponse.getEntity();
         }
-
+        // 没有发生变更
         if (delta == null) {
+            // 服务端禁止不安全的增量修改
             logger.warn("The server does not allow the delta revision to be applied because it is not safe. "
                     + "Hence got the full registry.");
             getAndStoreFullRegistry();
         } else if (fetchRegistryGeneration.compareAndSet(currentUpdateGeneration, currentUpdateGeneration + 1)) {
+            // 发生了变更
             logger.debug("Got delta update with apps hashcode {}", delta.getAppsHashCode());
             String reconcileHashCode = "";
             if (fetchRegistryUpdateLock.tryLock()) {
                 try {
+                    // 这里要将从Server获取到的所有变更信息更新到本地缓存，这些变更信息来自于两类Region
+                    // 1、本地Region
+                    // 2、远程Region
+                    // 而本地缓存也分为 两类
+                    //  1、缓存本地Region的Applications
+                    //  2、缓存所有远程Region的注册信息的
+                    //      map(key -> 远程Region, value -> 远程Region的注册信息)
                     updateDelta(delta);
+                    // 通过hashCode进行比较，相同说明没有丢失，不相同说明丢失了
                     reconcileHashCode = getReconcileHashCode(applications);
                 } finally {
                     fetchRegistryUpdateLock.unlock();
@@ -1239,7 +1249,7 @@ public class DiscoveryClient implements EurekaClient {
      * Updates the delta information fetches from the eureka server into the
      * local cache.
      *
-     * @param delta
+     * @param delta 所有发生变化的
      *            the delta information received from eureka server in the last
      *            poll cycle.
      */
@@ -1538,7 +1548,7 @@ public class DiscoveryClient implements EurekaClient {
                     instanceRegionChecker.getAzToRegionMapper().refreshMapping();
                 }
             }
-
+            // 定时更新，定时下载
             boolean success = fetchRegistry(remoteRegionsModified);
             if (success) {
                 registrySize = localRegionApps.get().size();
